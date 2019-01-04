@@ -1,0 +1,50 @@
+---
+title: "R forecasting examples"
+output:
+  html_notebook:
+    code_folding: show
+    fig_caption: yes
+    highlight: tango
+    theme: united
+    toc: yes
+  html_document:
+    df_print: paged
+    toc: yes
+---
+
+## Aims
+
+* keep a quick reference guide to a handful of forecasting techniques
+* show plots, including in forecast toolbox
+* understand how to render R markdown in gh!
+
+## Data
+
+* Seasonal data example - australian beer production, from RJ Hyndman
+  [fpp repo](https://github.com/robjhyndman/fpp2-package/tree/master/data/)
+
+* less seasonal example - foreign visitors to oz. Same repo
+
+
+educational open repo with gpl licence so I think no problems reuse. 
+
+# Linkup commence.
+
+A super simple forecast.
+```{r}
+library(forecast)
+load("ausbeer.rda")
+mod <- rwf(ausbeer, drift=TRUE)
+autoplot(ausbeer) + autolayer(mod)
+
+
+```
+#sd(mod$residuals[-1])
+And another.
+```{r}
+autoplot(ausbeer) + autolayer(snaive(ausbeer))
+
+```
+- combine them?
+
+
