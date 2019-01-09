@@ -20,20 +20,26 @@
 
             <!-- and also the stamen library -->
             <script type="text/javascript" src="https://stamen-maps.a.ssl.fastly.net/js/tile.stamen.js"></script>
+            <!-- and also the jquery library -->
+            <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
 
             <!-- load data (EU regions)-->
-            <script src="js/regions/EU_L0.js"> </script>
+            <script src="js/regions/EU_L0.js"> </script> 
             <!-- load style color functions-->
             <script src="js/eurmap_colors.js"> </script> 
             <!-- load secrets... need to work out how to do this serverside 
                 too; but for now switch to stamen tile provider. -->
             <!-- <script src="js/priv_keys.js"> </script> -->
+            <canvas id="myCanvas" width="300" height="200"
+                style="border:1px solid #d3d3d3;">
+                Your browser does not support the canvas element.
+            </canvas>
 
             <div id="space"></div>
             <div id="mapid"></div>
             <!-- follow leaflet tutorial https://leafletjs.com/examples/choropleth/ -->
-    <script>
-        function style(feature) {
+        <script>
+          function style(feature) {
             return {
                 fillColor: getColor(feature.properties.population),
                 weight: 2,
@@ -62,80 +68,133 @@
             }
         }
         function resetHighlight(e) {
-        geojson.resetStyle(e.target);
-        info.update();
-    }
-    function onEachFeature(feature, layer) {
-        layer.on({
-            mouseover: highlightFeature,
-            mouseout: resetHighlight,
-            //click: zoomToFeature
-        });
-    }
+            geojson.resetStyle(e.target);
+            info.update();
+        }
+        function onEachFeature(feature, layer) {
+            layer.on({
+                mouseover: highlightFeature,
+                mouseout: resetHighlight,
+                //click: zoomToFeature
+            });
+        }
 
-    /// ADDING AN INFOBOX ("CUSTOM CONTROL")
-    var info = L.control();
+        function httpRequest(address, reqType, asyncProc) {
+            // https://stackoverflow.com/a/14092195
+            var req = window.XMLHttpRequest ? new XMLHttpRequest() : new ActiveXObject("Microsoft.XMLHTTP");
+            if (asyncProc) { 
+                req.onreadystatechange = function() { 
+                if (this.readyState == 4) {
+                    asyncProc(this);
+                } 
+                };
+            } else { 
+                req.timeout = 4000;  // Reduce default 2mn-like timeout to 4 s if synchronous
+            }
+            req.open(reqType, address, !(!asyncProc));
+            req.send();
+            return req;
+        }
+        /// ADDING AN INFOBOX ("CUSTOM CONTROL")
+        var info = L.control();
 
-    info.onAdd = function (map) {
-        this._div = L.DomUtil.create('div', 'info'); // create a div with a class "info"
-        this.update();
-        return this._div;
-    };
+        info.onAdd = function (map) {
+            this._div = L.DomUtil.create('div', 'info'); // create a div with a class "info"
+            this.update();
+            return this._div;
+        };
 
-    // method that we will use to update the control based on feature properties passed
-    info.update = function (props, id) {
-        var pop = props? props.population : 0;
-        var pop_str = pop.toLocaleString();
-	//number.toLocaleString();
-        this._div.innerHTML = '<h4>Region Properties</h4>' +  (props ?
-            `<b> ${id} (L${props.LEVL_CODE}): ${props.NUTS_NAME} </b><br />` +
-            //`${props.population} pp <br />` +
-            `${pop_str} <br />` +
-            `${props.code_iso3}: ${props.cname_en}`
-            //'<b>' + id + ' (' + props.NUTS_NAME + '</b><br />' + props.density + ' people / mi<sup>2</sup>'
-            : 'Hover over a state');
+        // method that we will use to update the control based on feature properties passed
+        info.update = function (props, id) {
+            var pop = props? props.population : 0;
+            var pop_str = pop.toLocaleString();
+        //number.toLocaleString();
+            this._div.innerHTML = '<h4>Region Properties</h4>' +  (props ?
+                `<b> ${id} (L${props.LEVL_CODE}): ${props.NUTS_NAME} </b><br />` +
+                //`${props.population} pp <br />` +
+                `${pop_str} <br />` +
+                `${props.code_iso3}: ${props.cname_en}`
+                //'<b>' + id + ' (' + props.NUTS_NAME + '</b><br />' + props.density + ' people / mi<sup>2</sup>'
+                : 'Hover over a state');
 
-    };
-    // end main functions 
+        };
+        // end main functions
 
-    
+        // load the map component, add the geojson layers
+        var map = L.map('mapid').setView([46, 11.0], 3);
+        // might need to use element_id instead? dont think so.
+        //    var map = new L.Map("element_id", {center: new L.LatLng(37.7, -122.4),
+        //        zoom: 12 });
 
-    // load the map component, add the geojson layers
-    var map = L.map('mapid').setView([46, 11.0], 3);
-    // might need to use element_id instead? dont think so.
-    //    var map = new L.Map("element_id", {center: new L.LatLng(37.7, -122.4),
-    //        zoom: 12 });
-
-    var geojson;
-    // different ways of adding the layer -- for mapbox/leaflet tutorial, we
-    // use the L api, and addTo(map).
-    // with stamen, we instantiate the layer in one go, and then 
-    // add in a 2nd step.
-    var layer0 = new L.StamenTileLayer("watercolor");
-    //var layer0 = new L.StamenTileLayer("toner-background");
-    map.addLayer(layer0);
-    var layer  = new L.StamenTileLayer("toner-lines");
-    map.addLayer(layer);
-    var layer2 = new L.StamenTileLayer("toner-labels");
-    map.addLayer(layer2);
-    // how to include the attribution? ah, they include it in the Stamen api already.
+        var geojson;
+        // different ways of adding the layer -- for mapbox/leaflet tutorial, we
+        // use the L api, and addTo(map).
+        // with stamen, we instantiate the layer in one go, and then 
+        // add in a 2nd step.
+        var layer0 = new L.StamenTileLayer("watercolor");
+        //var layer0 = new L.StamenTileLayer("toner-background");
+        map.addLayer(layer0);
+        var layer  = new L.StamenTileLayer("toner-lines");
+        map.addLayer(layer);
+        var layer2 = new L.StamenTileLayer("toner-labels");
+        map.addLayer(layer2);
+        // how to include the attribution? ah, they include it in the Stamen api already.
 
     /*L.tileLayer('https://api.tiles.mapbox.com/v4/{id}/{z}/{x}/{y}.png?access_token=' + mapboxAccessToken, {
         id: 'mapbox.light',
         //id: 'mapbox.streets',
         attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors, <a href="https://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, Imagery © <a href="https://www.mapbox.com/">Mapbox</a>',
 }).addTo(map); */
+        
+        var data2 = $.ajax({
+            url: "js/regions/EU_L0.json",
+            dataType: "json",
+            //async: false,
+            success: console.log("euro Data successfully loaded!"),
+            error: function (xhr) {
+                alert(xhr.statusText)
+            }
+        });
 
-    // add a geojson layer, with a callback to present info from the data dict.
-    geojson = L.geoJson(euroData, {
-            style: style,
-            onEachFeature: onEachFeature
-    }).addTo(map);
+        //var request = new XMLHttpRequest();
+        //request.open("GET", "js/regions/EU_L0.json", true); 
 
-    info.addTo(map);
+        //request.onreadystatechange = checkData;
+        //request.send(null);
+        // Specify that this code should run once the county data request is complete
+        $.when(data2).done(function() {
+            //var plain_json_data = req.responseText;
+            console.log("doc ready!! " + data2.responseText.length);   //responseJSON.length); //   data2.length);
+            //console.log("status.." + req.readyState);
+
+            geojson = L.geoJson(data2.responseJSON, {
+                style: style,
+                onEachFeature: onEachFeature
+            }).addTo(map);
+
+           info.addTo(map);
+           console.log("status.." + geojson);
+
+
+        });
+        // JQuery on document ready
+        /*$(function () {
+            //var plain_json_data = request.responseText;
+            //var euroData = JSON.parse(plain_json_data);
+
+            // add a geojson layer, with a callback to present info from the data dict.
+
+            var st = request.responseText;
+            var canvas = $(document).getElementById("canvas");
+            var ctx=canvas.getContext("2d");
+            //ctx.clearRect(0, 0, canvas.width, canvas.height);
+            //var st2 =   Math.random().toString(36).substr(2, 5);
+            //ctx.textAlign = "center";
+            //ctx.fillText("\n\n>>"+ st.length + "< === " + st2, canvas.width/2, canvas.height/2);
+        }); */ 
     </script>
 
-    </section>
+        </section>
         
     </body>
 </html>
