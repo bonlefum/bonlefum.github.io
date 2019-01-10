@@ -23,17 +23,13 @@
             <!-- and also the jquery library -->
             <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
 
-            <!-- load data (EU regions)-->
-            <script src="js/regions/EU_L0.js"> </script> 
+            <!-- load data (EU regions) -- now it is done by .ajax load
+            <script src="js/regions/EU_L0.js"> </script> -->
             <!-- load style color functions-->
             <script src="js/eurmap_colors.js"> </script> 
             <!-- load secrets... need to work out how to do this serverside 
                 too; but for now switch to stamen tile provider. -->
             <!-- <script src="js/priv_keys.js"> </script> -->
-            <canvas id="myCanvas" width="300" height="200"
-                style="border:1px solid #d3d3d3;">
-                Your browser does not support the canvas element.
-            </canvas>
 
             <div id="space"></div>
             <div id="mapid"></div>
@@ -79,22 +75,6 @@
             });
         }
 
-        function httpRequest(address, reqType, asyncProc) {
-            // https://stackoverflow.com/a/14092195
-            var req = window.XMLHttpRequest ? new XMLHttpRequest() : new ActiveXObject("Microsoft.XMLHTTP");
-            if (asyncProc) { 
-                req.onreadystatechange = function() { 
-                if (this.readyState == 4) {
-                    asyncProc(this);
-                } 
-                };
-            } else { 
-                req.timeout = 4000;  // Reduce default 2mn-like timeout to 4 s if synchronous
-            }
-            req.open(reqType, address, !(!asyncProc));
-            req.send();
-            return req;
-        }
         /// ADDING AN INFOBOX ("CUSTOM CONTROL")
         var info = L.control();
 
@@ -123,8 +103,6 @@
         // load the map component, add the geojson layers
         var map = L.map('mapid').setView([46, 11.0], 3);
         // might need to use element_id instead? dont think so.
-        //    var map = new L.Map("element_id", {center: new L.LatLng(37.7, -122.4),
-        //        zoom: 12 });
 
         var geojson;
         // different ways of adding the layer -- for mapbox/leaflet tutorial, we
@@ -146,7 +124,7 @@
         attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors, <a href="https://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, Imagery © <a href="https://www.mapbox.com/">Mapbox</a>',
 }).addTo(map); */
         
-        var data2 = $.ajax({
+        var euroData = $.ajax({
             url: "js/regions/EU_L0.json",
             dataType: "json",
             //async: false,
@@ -156,18 +134,11 @@
             }
         });
 
-        //var request = new XMLHttpRequest();
-        //request.open("GET", "js/regions/EU_L0.json", true); 
+        // once data is loaded, render it on map
+        $.when(euroData).done(function() {
+            console.log("doc ready!! " + Math.round(euroData.responseText.length/1024) + "kb");
 
-        //request.onreadystatechange = checkData;
-        //request.send(null);
-        // Specify that this code should run once the county data request is complete
-        $.when(data2).done(function() {
-            //var plain_json_data = req.responseText;
-            console.log("doc ready!! " + data2.responseText.length);   //responseJSON.length); //   data2.length);
-            //console.log("status.." + req.readyState);
-
-            geojson = L.geoJson(data2.responseJSON, {
+            geojson = L.geoJson(euroData.responseJSON, {
                 style: style,
                 onEachFeature: onEachFeature
             }).addTo(map);
@@ -177,21 +148,7 @@
 
 
         });
-        // JQuery on document ready
-        /*$(function () {
-            //var plain_json_data = request.responseText;
-            //var euroData = JSON.parse(plain_json_data);
 
-            // add a geojson layer, with a callback to present info from the data dict.
-
-            var st = request.responseText;
-            var canvas = $(document).getElementById("canvas");
-            var ctx=canvas.getContext("2d");
-            //ctx.clearRect(0, 0, canvas.width, canvas.height);
-            //var st2 =   Math.random().toString(36).substr(2, 5);
-            //ctx.textAlign = "center";
-            //ctx.fillText("\n\n>>"+ st.length + "< === " + st2, canvas.width/2, canvas.height/2);
-        }); */ 
     </script>
 
         </section>
