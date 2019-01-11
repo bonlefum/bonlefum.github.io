@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="initial-scale=1.0, user-scalable=no" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <title>Learning Leaflet with overlay layers</title>
+
+        <link rel="stylesheet" href="css/leafer_sty.css">
+    </head>
+    <body>
+        <header> <h2>Region propviewer</h2> </header>
+
+        <section>
+            <!-- load data (EU regions)-->
+            <script src="js/regions/EU_L0.js"> </script>
+
+            <canvas id="myCanvas" width="300" height="200"
+                style="border:1px solid #d3d3d3;">
+                Your browser does not support the canvas element.
+            </canvas>
+
+            <canvas id="cv2" width="300" height="200"
+                style="border:1px solid #d3d3d3;">
+                Your browser does not support the canvas element2.
+            </canvas>
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+    <script>
+        // we were able to access the data that was in an object already..
+        var canvas = document.getElementById("myCanvas");
+        var ctx=canvas.getContext("2d");
+        ctx.textAlign = "center";
+        ctx.fillText(Object.keys(euroData), canvas.width/2, canvas.height/2);
+
+        // now can we load the datafile (geojson this case) into a var of
+        // our choosing?
+
+        
+        $(document).ready(function(){
+            $("button").click(function(){
+                $.getJSON("http://localhost:3001/data/us-states.json", function(result){
+                    $.each(result, function(i, field){
+                        $("div").append(field + " ");
+                    });
+                    //alert(`loaded! ${Object.keys(result)}` )
+                    //var s = `loaded! ${Object.keys(result)}`;
+                    //alert(s);
+                });
+                alert("pop")
+            });
+        });
+
+    //var dataz = JSON.parse("data/us-sates.json")
+    //$.getJSON('data/us-sates.json', function(data) {         
+    //        alert(data); });
+
+    //alert(Object.keys(dataz))
+ 
+function loadJSON(callback) {   
+
+    var xobj = new XMLHttpRequest();
+    xobj.overrideMimeType("application/json");
+    xobj.open('GET', 'data/us-states.json', true); 
+    xobj.onreadystatechange = function () {
+        if (xobj.readyState == 4 && xobj.status == "200") {
+            // Required use of an anonymous callback as .open will NOT return a value but simply returns undefined in asynchronous mode
+            callback(xobj.responseText);
+        }
+    };
+    xobj.send(null);  
+}
+
+    function init() {
+       loadJSON(function(response) {
+           // Parse JSON string into object
+           var actual_JSON = JSON.parse(response);
+       });
+    }
+ 
+    //var st = load("data.txt");
+    var request = new XMLHttpRequest();
+    //request.open("GET", "data.txt", false); // do sync load (blocking)
+    request.open("GET", "data.txt", true); // do async load 
+    //request.onreadystatechange = checkData;
+    request.send(null)
+
+    var st2 =   Math.random().toString(36).substr(2, 5);
+
+    //var my_JSON_object = JSON.parse(request.responseText);
+    //alert (my_JSON_object.result[0]);
+    var canvas = document.getElementById("cv2");
+    var ctx=canvas.getContext("2d");
+    ctx.textAlign = "center";
+    ctx.fillStyle = "blue";
+    ctx.fillText("---"+ st2, canvas.width/2, canvas.height/2);
+
+    $(function () {
+        var st = request.responseText;
+        var canvas = document.getElementById("cv2");
+        var ctx=canvas.getContext("2d");
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        var st2 =   Math.random().toString(36).substr(2, 5);
+        ctx.textAlign = "center";
+        ctx.fillText("\n\n>>"+ st + "< === " + st2, canvas.width/2, canvas.height/2);
+    });
+
+    function checkData()
+    {
+        //alert(request.readyState);
+        console.log(request.readyState);
+    }
+
+    function checkData2(){
+        var st = request.responseText;
+        var canvas = document.getElementById("cv2");
+        var ctx=canvas.getContext("2d");
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        var st2 =   Math.random().toString(36).substr(2, 5);
+        ctx.textAlign = "center";
+        ctx.fillText("\n\n>>"+ st + "< === " + st2, canvas.width/2, canvas.height/2);
+
+    };
+
+    // page about async loading, via defer (non-blocking & faster)
+    // just use <scrpt defer src="thing.js"> 
+    // https://flaviocopes.com/javascript-async-defer/ 
+
+
+    </script>
+
+    <button>Get JSON data</button>
+
+
+    <div>XHE</div>
+
+        
+    </section>
+    </body>
+</html>
