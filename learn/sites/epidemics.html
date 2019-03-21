@@ -1,0 +1,259 @@
+<html>
+    <head>
+            <script src="https://d3js.org/d3.v3.min.js" charset="utf-8"></script>
+            <style>
+                .blurb {
+                    width: 600px;
+                    border: 1px solid #2C9ABB;
+                    margin-bottom: 20px;
+                    padding: 3px;
+                }
+                #main {
+                    width: 800px;
+                    margin: 0 auto;
+                }
+                
+                input {
+                    margin-right: 3px;
+                }
+
+                #svg-grid {
+                    
+                    margin: 0 auto;
+                    border: 3px solid #F59D56;
+                }
+            </style>
+    </head>
+    <body>
+        <script src="vis-grid.js"></script>
+        <script src="http://ajax.aspnetcdn.com/ajax/jQuery/jquery-2.1.4.min.js"></script>
+        <div id="main">
+        <h2>Model of epidemic spread</h2>
+        <div class="blurb">
+            This uses a simple SIR model on a wrap-around 2D lattice. All individuals are initially susceptible; 
+            infection is probabilistic over the 1-hop neighbours; only "S" individuals can be infected; 
+            once "R"ecovered, an individual cannot be reinfected.
+            The rate of transmission is beta (probability per timestep, per contact; thus it is cumulative for 
+            S individuals who have multiple I neighbours) while the rate of recovery is gamma.
+            There is an optional "small-world" effect, implemented using a probabilistic selection of another 
+            individual at any location in the grid.  This randomly selected neighbour is not persistent -- so 
+            there is no social network per-se, just long-range transient contacts, with probability alpha.
+          </div>
+        <div id="control-panel">
+
+        </div>
+            <button type="button" id="stop">Stop simulation</button>
+            <button type="button" id="reset">Restart simulation</button>
+            <label for="max-iter">Iterations to run:</label>
+            <input type="text" id="max-iter" /><br/>
+            <input type="text" value="0.05" id="beta"/><label for="beta">Transmission rate (Beta) </label><br/>
+            <input type="text" value="0.1"  id="gamma"/><label for="gamma">Recovery rate (Gamma)</label><br/>
+            <input type="text" value="0.001" id="alpha"/><label for="alpha">Long-range transmission (Alpha)</label><br/>
+
+<!--             <svg width="50" height="50">
+                    <circle cx="25" cy="25" r="22" fill="blue" stroke="gray" stroke-width="2"/>
+            </svg>
+ -->            <br/>
+            <div id="report" margin=0px>
+                <p id="rpt_area"> (no msgs)</p>
+            </div>
+        <script>
+            var beta = 0.05; // per time unit,per contact transmission prob
+            var gamma = 0.1; // per timestep prob of recovery
+            var alpha = 0.001;
+            
+            $(function () {
+                $('button#stop').click(function () {
+                    console.log("[I] stop button clicked.. goodnight.. ", g, "iterations completed");
+                    clearInterval(go_handle);
+                });
+                $('button#reset').click(function () {
+                    console.log("[I] reset button clicked.. ");
+                    // first stop if was already going
+                    clearInterval(go_handle);
+                    // now prepare again
+                    // read value of the iterator upper limit
+                    var _gen = $('#max-iter').val().replace(/\s/g, "");
+                    console.log("[I] new upper limit to be:", _g, typeof _g);
+                    if (typeof _gen !== 'undefined' && _gen != ""){
+                        g_max = _gen;
+                    }
+                    // input validation (reomove spaces, check probs 0<p<1)
+                    var _a = $('#alpha').val().replace(/\s/g, "");
+                    var _b = $('#beta').val().replace(/\s/g, "");
+                    var _g = $('#gamma').val().replace(/\s/g, "");
+                    if (typeof _g !== 'undefined' && _g != ""){
+                        gamma = _g;
+                    }
+                    if (typeof _b !== 'undefined' && _b != ""){
+                        beta = _b;
+                    }
+                    if (typeof _a !== 'undefined' && _a != ""){
+                        alpha = _a;
+                    }
+
+                    init_grid();
+                    g = 0;
+                    // and launch sim/vis
+                    go_handle = setInterval(simulate_and_vis, 10);
+
+                });
+                //console.log("[I] we have initial value of " + $('#svg').attr('max-value'));
+          //$("#max-value").val($('#rating-container').attr('max-value'));
+            });
+
+
+            var grid_len = 100;
+            
+            var grid = [];
+            var temp_grid = [];
+
+            var go_handle = false;
+
+            var g = 0;
+            var g_max = 25;
+
+            function get_rand_int(min, max){
+                // integer from min:max, inclusive.
+                return Math.floor((max-min+1)*Math.random()) + min;
+            }
+
+            function init_grid() {
+                for (var i=0; i<grid_len; i++){
+                    grid[i] = []; // insert/assign an array in pos i, even if not exist.
+                    for (var j=0; j<grid_len; j++){
+                        grid[i][j] = "S";
+                    }
+                }
+                // pick a single patient zero
+                var x = get_rand_int(0, grid_len-1);
+                var y = get_rand_int(0, grid_len-1);
+                grid[x][y] = "I";
+                console.log("Patient zero: ", x,y);
+
+            }
+
+            function mod(n, m) { 
+                // negative mod stays in [0,m), https://stackoverflow.com/a/17323608
+                return ((n % m) + m) % m;
+            }
+
+            function run_timestep() {
+                //temp_grid = [];?
+                // make copy of current grid into temp_grid 
+                for (var i=0; i<grid_len; i++){
+                    temp_grid[i] = [];
+                    for (var j=0; j<grid_len; j++){
+                        temp_grid[i][j] = grid[i][j];
+                    }
+                }
+                // go through all current positions and perform infections as spatially constrained
+                for (var i=0; i<grid_len; i++){
+                    for (var j=0; j<grid_len; j++){
+                        if (grid[i][j] == "I"){
+                            expose_neighbors(i, j);
+                            try_recovery(i, j);
+                        }
+                    }
+                }
+                // copy temp grid updates all over to the persistent one.
+                for (var i=0; i<grid_len; i++){
+                    for (var j=0; j<grid_len; j++){
+                        grid[i][j] = temp_grid[i][j];
+                    }
+                }
+            }
+
+            function expose_neighbors(i, j) {
+                // pass in coords of an infected ind.
+                for (var ni=i-1; ni<=i+1; ni++){
+                    for (var nj=j-1; nj<=j+1; nj++){
+                        if (ni == i && nj == j){
+                            continue; // skip self.
+                        }
+                        // handle wrap around of indices -- must use temp vars!
+                        var tni = mod(ni, grid_len);
+                        var tnj = mod(nj, grid_len);
+                        // all neighbours could be infected at some prob.
+                        // long-range connection with low probability
+                        if (Math.random() < alpha){
+                            // pick a random long--range neighbour
+                            var x = 0; var y = 0;
+                            do {
+                            var x = get_rand_int(0, grid_len-1);
+                            var y = get_rand_int(0, grid_len-1);
+                            } while (x!=i && y != j);
+
+                            try_infection(x, y);
+
+                        } else{ 
+                            try_infection(tni, tnj);
+                        }
+
+                    }
+
+                }
+            }
+            function try_infection(i, j){
+                if (grid[i][j] == "S"){
+                    // this individual could be infected, at rate beta.
+                    // this means that multiple infection events are cumulative, basically.
+                    if (Math.random() < beta) {
+                        temp_grid[i][j] = "I";
+                    }
+                    //console.log("coord ", i, j, " was S. transition? ", grid[i][j], temp_grid[i][j]);
+                }
+            }
+            function try_recovery(i, j){
+                // with prob gamma, move from I -> R.
+                if (grid[i][j] == "I"){
+                    if (Math.random() < gamma) {
+                        temp_grid[i][j] = "R";
+                    }
+                }
+            }
+
+            function simulate_and_vis() {
+                run_timestep();
+                //if (g%10 == 0) {
+                if (true){
+                    //var clrs = ["S", "#dcdcdc", "I", "#c82605", "R", "#6fc401"];
+                    var clrs = ["S", "#dcdcdc", "I", "#2176c9", "R", "#042029"];
+
+                    update_grid(grid, clrs); 
+                }
+                if (g%25 == 0) {
+                    console.log("got to iter", g );
+                }
+                if (g>g_max){
+                    clearInterval(go_handle);
+                    console.log("goodnight..", g );
+
+                }
+                g++;
+            }
+
+            // execute!
+            init_grid();
+            draw_grid(grid, ["S", "#dcdcdc", "I", "#c82605", "R", "#6fc401"]); 
+
+            // periodically execute sim and vis
+            go_handle = setInterval(simulate_and_vis, 10);
+
+
+
+        </script>
+
+        <div id="foot" class="blurb"  margin="0 auto" style="margin-top:16px">
+                Sources & references: 
+                &#x25B8; NiC <a href="https://www.edx.org/course/nature-code-biology-javascript-epflx-nic1-0x">edX course</a> for the base model / dynamics.
+                &#x25CF; <a href="http://www.natureincode.com/">NiC site</a>. 
+                &#x25CF; Concepts from JQuery (Microsoft) <a href="https://www.edx.org/course/introduction-to-jquery-2">edX course</a> for interaction.
+                &#x25CF; d3 grid presentation from <a href="http://www.natureincode.com/code/various/draw_grid_update_grid.html">NiC</a>; modifications following Scott Murray's <a href="https://alignedleft.com/tutorials/d3">book</a>.
+                &#x25C2;
+            </div>
+            
+        </div>
+
+    </body>
+</html>
